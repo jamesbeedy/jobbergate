@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from typing import Annotated, Optional
@@ -15,13 +16,23 @@ def _get_env_file() -> Path | None:
     """
     Determine if running in test mode and return the correct path to the .env file if not.
     """
-    _test_mode = "pytest" in sys.modules
-    if not _test_mode:
-        default_dotenv_file_location = Path("/var/snap/jobbergate-agent/common/.env")
-        if default_dotenv_file_location.exists():
-            return default_dotenv_file_location
-        return Path(".env")
-    return None
+    dotenv_file = Path(".env")
+    default_system_dotenv_file = Path("/etc/default/jobbergate-agent")
+    default_snap_dotenv_file = Path("/var/snap/jobbergate-agent/common/.env")
+
+    if os.environ.get("SNAP"):
+        if default_snap_dotenv_file.exists():
+            dotenv_file = default_snap_dotenv_file
+
+    elif default_system_dotenv_file.exists():
+        dotenv_file = default_system_dotenv_file
+
+    elif dotenv_file.exists():
+        pass
+    else:
+        dotenv_file = None
+
+    return dotenv_file
 
 
 class Settings(BaseSettings):
@@ -29,11 +40,11 @@ class Settings(BaseSettings):
     SBATCH_PATH: Path = Path("/usr/bin/sbatch")
     SCONTROL_PATH: Path = Path("/usr/bin/scontrol")
     SCANCEL_PATH: Path = Path("/usr/bin/scancel")
-    X_SLURM_USER_NAME: str = "ubuntu"
+    X_SLURM_USER_NAME: str = "root"
     DEFAULT_SLURM_WORK_DIR: str = "/home/{username}"
 
     # cluster api info
-    BASE_API_URL: str = "https://apis.vantagehpc.io"
+    BASE_API_URL: str = "https://apis.vantagecompute.ai"
     MAX_PAGES_PER_CYCLE: int = Field(5, ge=1)
     ITEMS_PER_PAGE: int = Field(100, ge=1, le=100)
 
@@ -45,7 +56,7 @@ class Settings(BaseSettings):
     SENTRY_PROFILING_SAMPLE_RATE: Annotated[float, confloat(gt=0.0, le=1.0)] = 0.01
 
     # OIDC config for machine-to-machine security
-    OIDC_DOMAIN: str = "auth.vantagehpc.io/realms/vantage"
+    OIDC_DOMAIN: str = "auth.vantagecompute.ai/realms/vantage"
     OIDC_CLIENT_ID: str
     OIDC_CLIENT_SECRET: str
     OIDC_USE_HTTPS: bool = True
